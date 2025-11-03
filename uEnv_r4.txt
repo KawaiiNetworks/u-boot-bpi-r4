@@ -46,6 +46,10 @@ bootnetfit=run buildargs;if tftp $kaddr ${bootfile}; then bootm $kaddr;fi
 bootfile=bpi-r4.itb
 
 checkenv=test -e ${device} ${partition} ${bootenv}
+checkenvmmc=test -e mmc ${partition} ${bootenv}
+checkenvusb=usb start;usb info;test -e usb ${partition} ${bootenv}
+checkenvnvme=pci enum;nvme scan;nvme info;test -e nvme ${partition} ${bootenv}
+checkandsetdevice=if run checkenvusb;then setenv device usb;elif run checkenvnvme;then setenv device nvme;elif run checkenvmmc;then setenv device mmc;else echo "no uEnv.txt found";fi
 loadenvfile=if load ${device} ${partition} ${loadaddr} ${bootenv};then env import -t ${loadaddr} ${filesize};else echo "load (${bootenv}) failed";fi
 loadenv=if run checkenv;then run loadenvfile;fi
 resetenv=env default -a;printenv;
@@ -75,7 +79,7 @@ wrspimnand=if printenv bl2file;then if fatload $device $partition $loadaddr $bl2
 wremmc=if printenv bl2file;then mmc partconf 0 1 1 1;if fatload $device $partition $loadaddr $bl2file;then mmc erase 0x0 0x400;mmc write ${loadaddr} 0x0 0x400;else echo "loading bl2 $bl2file failed";fi;else echo "bl2file not defined";fi;mmc partconf 0 1 1 0;if printenv fipfile;then if fatload $device $partition $loadaddr $fipfile;then mmc erase 0x3400 0x1000;mmc write ${loadaddr} 0x3400 0x1000;else echo "loading fip $fipfile failed";fi;else echo "fipfile not defined";fi
 
 bootdelay=0
-bootcmd=setenv bootdelay 3; run loadenv;bootmenu;
+bootcmd=setenv bootdelay 3;run checkandsetdevice; run loadenv;bootmenu;
 
 lskernel=ls ${device} ${partition};
 askkernel=askenv kernelinput "enter kernel name:";
@@ -89,4 +93,3 @@ bootmenu_3=4. Boot kernel from NVME.=run bootnvme
 bootmenu_4=5. Boot kernel from UBI.=run bootubi
 
 bootmenu_default=2
-
